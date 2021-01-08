@@ -64,11 +64,11 @@ contexts [] {
 ##############################################
 
 main : context {
-   : include "comment";
    : include "gcode";
    : include "mcode";
    : include "tcode";
    : include "script";
+   : include "comment";
 }
 
 #################################################
@@ -76,33 +76,24 @@ main : context {
 #################################################
 
 comment: context {
+   default_style = .comment
    : pattern {
-      regex          \= ((;.*))
-      styles []       = .comment;
-   }
-}
-
-quoted_string: context {   
-   : inline_push {
-   regex \= (")
-   styles[] = .quoted_string.beging;
-   default_style = .quoted_text
-      : pop {
-         regex   \= (")
-         styles[] = .quoted_string.end;
-      }
+      regex          \= (;)(.*)
+      styles []       = .comment.punctuation, .comment;
    }
 }
    
 inline_comment: context {   
-   : inline_push {
-   regex \= (\()
-   styles[] = .comment.punctuation;
-   default_style = .comment
-      : pop {
-         regex   \= (\))
-         styles[] = .comment.punctuation;
-      }
+   : pattern {
+      regex \= (\()([^\)]*)(\))
+      styles[] = .comment.punctuation, .comment, .comment.punctuation;
+   }
+}
+
+quoted_string: context {   
+   : pattern {
+      regex \= (")([^"]*)(")
+      styles [] = .quoted_string.begin, .quoted_string, .quoted_string.end;
    }
 }
 
@@ -123,31 +114,68 @@ gcode_parameter: context {
 }
 
 gcode : context {
-   : inline_push {
+   default_style = .gcode
+   : push {
       regex          \= $${__gcode}
       styles []       = .gcode;
-      : eol_pop {
-      }
-      :include "inline_comment";
-      :include "comment";
-      :include "gcode_parameter";
-      
+      context []      = gcode_instruction;
+   }
+}
+
+gcode_instruction: context {
+   : eol_pop {}
+   :include "gcode_parameter";
+   :include "inline_comment";
+   :include "comment";
+}
+
+mcode_parameter: context {
+   : pattern {
+      regex          \= $${__gcode_parameter}
+      styles []       = .mcode.parameter;
+   }
+   
+   :include "expression_block";
+   :include "quoted_string";
+   :include "numeric";
+   
+   : pattern {
+      regex          \= $${__parameter_separator}
+      styles []       = .punctuation.separator;
    }
 }
 
 mcode : context {
+   default_style = .mcode
    : inline_push {
       regex          \= $${__mcode}
       styles []       = .mcode;
       : eol_pop {
       }
+      :include "mcode_parameter";
       :include "inline_comment";
-      :include "gcode_parameter";
       :include "comment";
    }
 }
 
+tcode_parameter: context {
+   : pattern {
+      regex          \= $${__gcode_parameter}
+      styles []       = .tcode.parameter;
+   }
+   
+   :include "expression_block";
+   :include "quoted_string";
+   :include "numeric";
+   
+   : pattern {
+      regex          \= $${__parameter_separator}
+      styles []       = .punctuation.separator;
+   }
+}
+
 tcode : context {
+   default_style = .tcode
    : inline_push {
       regex          \= $${__tcode}
       styles []       = .tcode;
@@ -155,10 +183,12 @@ tcode : context {
       }
       # T-Codes are special, they can have their tool number specified by expression
       :include "expression_block";
+      
       : pattern {
          regex          \= $${__dec_digits}
          styles []       = .tcode;
       }
+      :include "tcode_parameter";
       :include "inline_comment";
       :include "comment";
    }
@@ -170,8 +200,8 @@ script : context {
       regex          \= $${__keywords}
       styles []       = .keyword;
       : eol_pop {}
-      :include "comment";
       :include "expression";
+      :include "comment";
    }
 }
 
@@ -197,10 +227,6 @@ expression_block : context {
          styles[] = .expression.end;
       }
       : include "expression" ;
-   }
-   : pattern {
-      regex   \= (\})
-      styles[] = .illegal;
    }
 }
 
@@ -258,7 +284,15 @@ expression : context {
       styles []       = .array.accessor.end;
    }
    
-   : include "expression_block" ;
+   : pattern {
+      regex \= (\{)
+      styles [] = .expression.start;
+   }
+      
+   : pattern {
+      regex   \= (\})
+      styles[] = .expression.end;
+   }
 }
 
 ## end of all contexts
@@ -287,20 +321,20 @@ styles [] {
    textmate_scope        = punctuation.accessor
 }
 
-.quoted_string.beging : style {
-   textmate_scope        = punctuation.definition.string.begin
+.quoted_string.begin : style {
+   textmate_scope        = string.quoted.double
 }
 
 .quoted_string.end : style {
-   textmate_scope        = punctuation.definition.string.end
+   textmate_scope        = string.quoted.double
 }
 
-.quoted_text : style {
+.quoted_string : style {
    textmate_scope        = string.quoted.double
 }
 
 .comment.punctuation : style {
-   textmate_scope        = punctuation.definition.comment
+   textmate_scope        = comment.line
 }
 
 .comment : style {
@@ -315,11 +349,6 @@ styles [] {
 
 .expression.end : style {
    textmate_scope        = punctuation.section.braces.end
-}
-
-.gcode.parameter : style {
-   color = orange
-   textmate_scope        = variable.parameter
 }
 
 .punctuation.separator : style {
@@ -380,19 +409,37 @@ styles [] {
 .gcode : style {
    color                 = white
    background_color      = orange
-   textmate_scope        = meta.function
+   textmate_scope        = variable.parameter
+}
+
+.gcode.parameter : style {
+   color                 = white
+   background_color      = orange
+   textmate_scope        = variable.parameter
 }
 
 .mcode : style {
    color                 = white
    background_color      = green
-   textmate_scope        = meta.preprocessor
+   textmate_scope        = entity.name
+}
+
+.mcode.parameter : style {
+   color                 = white
+   background_color      = green
+   textmate_scope        = entity.name
 }
 
 .tcode : style {
    color                 = yellow
    background_color      = blue
-   textmate_scope        = meta.annotation
+   textmate_scope        = storage.type.function
+}
+
+.tcode.parameter : style {
+   color                 = yellow
+   background_color      = blue
+   textmate_scope        = storage.type.function
 }
 
 }

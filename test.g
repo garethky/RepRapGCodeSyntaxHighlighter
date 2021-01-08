@@ -1,13 +1,10 @@
 ; test.g - Test file for validating syntax coloring in Iro editor
-
 ; this is a block comment
 M561                    ; this comment ends a line
-G1 X2 (comments like this can be internal to a line) Y4 F20000
-
-; G, M and T codes
+G1 X2 (this is an inline comment) Y"" () F20000
 G1 X1.1 Y2.24.4 Z3.2 A4.4 B5.5 C6.6 D7.7 U8.8 V9.9 W10.0
-M300 S1 P0.io1 R"text" K{"String " ^ " concaten{ 1.0 }ation"} E100:100:100:100
-T-1
+M300 S1 P0.io1 R"text" K{"expression block " ^ " this is not an expression inside this string: { 1.0 }"} E100:100:100:100
+T-1 K500 F4
 T4
 
 ; expression blocks start with keywords
@@ -35,7 +32,7 @@ M{1}
 ; but they are for T codes
 T{2}
 
-; brackets that are not matching are illegal:
+; brackets that are not matching are illegal (not implemented yet):
 G1 X{{}{}}}
 
 ; you cant do scripting without wrapping it in expression blocks
