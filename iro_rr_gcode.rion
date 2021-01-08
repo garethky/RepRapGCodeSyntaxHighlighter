@@ -1,0 +1,398 @@
+#################################################################
+## Iro
+################################################################ 
+
+################################################################
+
+name                   = RepRapGCode
+file_extensions []     = g,gcode;
+
+################################################################
+## Constants
+################################################################
+
+# comments
+
+#keyword
+__keywords \= (?:if|elif|else|while|break|continue|var|set|abort|echo)
+
+#constant.language
+__constants \= (?:false|true|iterations|line|null|pi|result)
+
+# all the functions you can call
+__support_functions \= (?:abs|acos|asin|atan|atan2|cos|degrees|floor|isnan|max|min|mod|radians|sin|sqrt|tan)
+
+#keyword.operator.arithmetic
+__arithmetic_opperator \= ([\*/+-])
+
+#keyword.operator.assignment
+__assignment \= (?:[=^])
+
+#keyword.operator.comparison
+__comparison \= (?:=|==|!=|<|<=|>|>=)
+
+#keyword.operator.logical
+__logical \= (?:&&|&|\|\||\||!|\?|\:)
+
+# Matches a digit with any number of numeric separators, while
+# not allowing a numeric separator as the last or first character.
+__dec_digits \= (?:(-)?\d+(?:_\d+)*)
+
+__float_digits \= (?:(-)?\d+\.\d+)
+
+
+
+__gcode \= (G\d{1,4})
+
+__mcode \= (M\d{1,4})
+
+__tcode \= \b(T)
+
+__gcode_parameter \= \b(?:[A-Z])
+
+__parameter_separator \= (\:)
+
+
+#################################################
+## Parse contexts
+#################################################
+
+contexts [] {
+
+##############################################
+## Main Context - Entry point context
+##############################################
+
+main : context {
+   : include "comment";
+   : include "gcode";
+   : include "mcode";
+   : include "tcode";
+   : include "script";
+}
+
+#################################################
+## End of Main Context
+#################################################
+
+comment: context {
+   : pattern {
+      regex          \= ((;.*))
+      styles []       = .comment;
+   }
+}
+
+quoted_string: context {   
+   : inline_push {
+   regex \= (")
+   styles[] = .quoted_string.beging;
+   default_style = .quoted_text
+      : pop {
+         regex   \= (")
+         styles[] = .quoted_string.end;
+      }
+   }
+}
+   
+inline_comment: context {   
+   : inline_push {
+   regex \= (\()
+   styles[] = .comment.punctuation;
+   default_style = .comment
+      : pop {
+         regex   \= (\))
+         styles[] = .comment.punctuation;
+      }
+   }
+}
+
+gcode_parameter: context {
+   : pattern {
+      regex          \= $${__gcode_parameter}
+      styles []       = .gcode.parameter;
+   }
+   
+   :include "expression_block";
+   :include "quoted_string";
+   :include "numeric";
+   
+   : pattern {
+      regex          \= $${__parameter_separator}
+      styles []       = .punctuation.separator;
+   }
+}
+
+gcode : context {
+   : inline_push {
+      regex          \= $${__gcode}
+      styles []       = .gcode;
+      : eol_pop {
+      }
+      :include "inline_comment";
+      :include "comment";
+      :include "gcode_parameter";
+      
+   }
+}
+
+mcode : context {
+   : inline_push {
+      regex          \= $${__mcode}
+      styles []       = .mcode;
+      : eol_pop {
+      }
+      :include "inline_comment";
+      :include "gcode_parameter";
+      :include "comment";
+   }
+}
+
+tcode : context {
+   : inline_push {
+      regex          \= $${__tcode}
+      styles []       = .tcode;
+      : eol_pop {
+      }
+      # T-Codes are special, they can have their tool number specified by expression
+      :include "expression_block";
+      : pattern {
+         regex          \= $${__dec_digits}
+         styles []       = .tcode;
+      }
+      :include "inline_comment";
+      :include "comment";
+   }
+}
+
+# a script is a line that starts with one of the keywords in the language
+script : context {
+   : inline_push {
+      regex          \= $${__keywords}
+      styles []       = .keyword;
+      : eol_pop {}
+      :include "comment";
+      :include "expression";
+   }
+}
+
+numeric : context {
+
+   : pattern {
+      regex          \= $${__float_digits}
+      styles []       = .constant.numeric.float;
+   }
+   
+   : pattern {
+      regex          \= $${__dec_digits}
+      styles []       = .constant.numeric.integer;
+   }
+}
+
+expression_block : context {
+   : inline_push {
+   regex \= (\{)
+   styles [] = .expression.start;
+      : pop {
+         regex   \= (\})
+         styles[] = .expression.end;
+      }
+      : include "expression" ;
+   }
+   : pattern {
+      regex   \= (\})
+      styles[] = .illegal;
+   }
+}
+
+expression : context {
+   : include "numeric" ;
+   : include "quoted_string";
+   
+   : pattern {
+      regex          \= $${__constants}
+      styles []       = .constant.language;
+   }
+   
+   : pattern {
+      regex          \= $${__support_functions}
+      styles []       = .support.functions;
+   }
+   
+   : pattern {
+      regex          \= (\w+)
+      styles []       = .variable;
+   }
+   
+   : pattern {
+      regex          \= $${__arithmetic_opperator}
+      styles []       = .keyword.operator.arithmetic;
+   }
+   
+   : pattern {
+      regex          \= $${__assignment}
+      styles []       = .keyword.operator.assignment;
+   }
+
+   : pattern {
+      regex          \= $${__comparison}
+      styles []       = .keyword.operator.comparison;
+   }
+
+   : pattern {
+      regex          \= $${__logical}
+      styles []       = .keyword.operator.logical;
+   }
+
+   : pattern {
+      regex          \= (\.)
+      styles []       = .object.separator;
+   }
+   
+   : pattern {
+      regex          \= (\[)
+      styles []       = .array.accessor.begin;
+   }
+   
+   : pattern {
+      regex          \= (\])
+      styles []       = .array.accessor.end;
+   }
+   
+   : include "expression_block" ;
+}
+
+## end of all contexts
+}
+
+################################################################
+## Styles
+################################################################
+
+styles [] {
+
+.variable : style {
+   color= red
+   textmate_scope        = variable.other
+}
+
+.array.accessor.begin : style {
+   textmate_scope        = punctuation.section.brackets.begin
+}
+
+.array.accessor.end : style {
+   textmate_scope        = punctuation.section.brackets.end
+}
+
+.object.separator : style {
+   textmate_scope        = punctuation.accessor
+}
+
+.quoted_string.beging : style {
+   textmate_scope        = punctuation.definition.string.begin
+}
+
+.quoted_string.end : style {
+   textmate_scope        = punctuation.definition.string.end
+}
+
+.quoted_text : style {
+   textmate_scope        = string.quoted.double
+}
+
+.comment.punctuation : style {
+   textmate_scope        = punctuation.definition.comment
+}
+
+.comment : style {
+   color                 = light_green
+   italic                = true
+   textmate_scope        = comment.line
+}
+
+.expression.start : style {
+   textmate_scope        = punctuation.section.braces.begin
+}
+
+.expression.end : style {
+   textmate_scope        = punctuation.section.braces.end
+}
+
+.gcode.parameter : style {
+   color = orange
+   textmate_scope        = variable.parameter
+}
+
+.punctuation.separator : style {
+   textmate_scope        = punctuation.separator
+}
+
+.illegal : style { 
+   color                 = white
+   background_color      = red
+   textmate_scope        = invalid.illegal
+}
+
+.keyword : style {
+   color                 = cyan
+   textmate_scope        = keyword
+}
+
+.constant.language : style {
+   color                 = gold
+   textmate_scope        = constant.language
+}
+
+.keyword.operator.arithmetic : style {
+   color                 = yellow
+   textmate_scope        = keyword.operator.arithmetic
+}
+
+.keyword.operator.assignment : style {
+   color                 = #c51858
+   textmate_scope        = keyword.operator.assignment
+}
+
+.keyword.operator.comparison : style {
+   color                 = #c51858
+   textmate_scope        = keyword.operator.comparison
+}
+
+.keyword.operator.logical : style {
+   color                 = #c51858
+   textmate_scope        = keyword.operator.logical
+}
+
+.support.functions : style {
+   color                 = purple
+   textmate_scope        = support.function
+}
+
+.constant.numeric.integer : style {
+   color                 = purple
+   textmate_scope        = constant.numeric.integer
+}
+
+.constant.numeric.float : style {
+   color                 = purple
+   textmate_scope        = constant.numeric.float
+}
+
+.gcode : style {
+   color                 = white
+   background_color      = orange
+   textmate_scope        = meta.function
+}
+
+.mcode : style {
+   color                 = white
+   background_color      = green
+   textmate_scope        = meta.preprocessor
+}
+
+.tcode : style {
+   color                 = yellow
+   background_color      = blue
+   textmate_scope        = meta.annotation
+}
+
+}
