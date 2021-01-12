@@ -16,117 +16,9 @@ contexts:
       captures:
         1: comment.line.RepRapGCode
         2: comment.line.RepRapGCode
-  inline_comment:
-    - match: '(\()([^\)]*)(\))'
+    - match: '(.)'
       captures:
-        1: comment.line.RepRapGCode
-        2: comment.line.RepRapGCode
-        3: comment.line.RepRapGCode
-  quoted_string:
-    - match: '(")([^\x{0022}]*)(")'
-      captures:
-        1: string.quoted.double.RepRapGCode
-        2: string.quoted.double.RepRapGCode
-        3: string.quoted.double.RepRapGCode
-  gcode_parameter:
-    - match: '\b(?:[A-Z])'
-      captures:
-        0: variable.parameter.RepRapGCode
-    - include: expression_block
-    - include: quoted_string
-    - include: numeric
-    - match: '(\:)'
-      captures:
-        0: punctuation.separator.RepRapGCode
-  gcode:
-    - match: '(G\d{1,4})'
-      push: gcode_instruction
-      captures:
-        0: variable.parameter.RepRapGCode
-  gcode_instruction:
-    - match: '(^(?=.{0,1})(?:|))'
-      pop: true
-      captures:
-        0: variable.other.RepRapGCode
-    - include: gcode_parameter
-    - include: inline_comment
-    - include: comment
-  mcode_parameter:
-    - match: '\b(?:[A-Z])'
-      captures:
-        0: entity.name.RepRapGCode
-    - include: expression_block
-    - include: quoted_string
-    - include: numeric
-    - match: '(\:)'
-      captures:
-        0: punctuation.separator.RepRapGCode
-  mcode:
-    - match: '(M\d{1,4})'
-      captures:
-        0: entity.name.RepRapGCode
-      push: 
-        - match: '(^(?=.{0,1})(?:|))'
-          pop: true
-          captures:
-            0: variable.other.RepRapGCode
-        - include: mcode_parameter
-        - include: inline_comment
-        - include: comment
-  tcode_parameter:
-    - match: '\b(?:[A-Z])'
-      captures:
-        0: storage.type.function.RepRapGCode
-    - include: expression_block
-    - include: quoted_string
-    - include: numeric
-    - match: '(\:)'
-      captures:
-        0: punctuation.separator.RepRapGCode
-  tcode:
-    - match: '\b(T)'
-      captures:
-        0: storage.type.function.RepRapGCode
-      push: 
-        - match: '(^(?=.{0,1})(?:|))'
-          pop: true
-          captures:
-            0: variable.other.RepRapGCode
-        - include: expression_block
-        - match: '(?:(-)?\d+(?:_\d+)*)'
-          captures:
-            0: storage.type.function.RepRapGCode
-        - include: tcode_parameter
-        - include: inline_comment
-        - include: comment
-  script:
-    - match: '(?:if|elif|else|while|break|continue|var|set|abort|echo)'
-      captures:
-        0: keyword.RepRapGCode
-      push: 
-        - match: '(^(?=.{0,1})(?:|))'
-          pop: true
-          captures:
-            0: variable.other.RepRapGCode
-        - include: expression
-        - include: comment
-  numeric:
-    - match: '(?:(-)?\d+\.\d+)'
-      captures:
-        0: constant.numeric.float.RepRapGCode
-    - match: '(?:(-)?\d+(?:_\d+)*)'
-      captures:
-        0: constant.numeric.integer.RepRapGCode
-  expression_block:
-    - match: '(\{)'
-      captures:
-        0: punctuation.section.braces.begin.RepRapGCode
-      push: 
-        - match: '(\})'
-          pop: true
-          captures:
-            0: punctuation.section.braces.end.RepRapGCode
-        - include: expression
+        0: comment.line.RepRapGCode
   expression:
     - include: numeric
     - include: quoted_string
@@ -166,3 +58,123 @@ contexts:
     - match: '(\})'
       captures:
         0: punctuation.section.braces.end.RepRapGCode
+  expression_block:
+    - match: '(\{)'
+      captures:
+        0: punctuation.section.braces.begin.RepRapGCode
+      push:
+        - match: '(\})'
+          pop: true
+          captures:
+            0: punctuation.section.braces.end.RepRapGCode
+        - include: expression
+  gcode:
+    - match: '(G\d{1,4})'
+      push: gcode_instruction
+      captures:
+        0: variable.parameter.RepRapGCode
+    - match: '(.)'
+      captures:
+        0: variable.parameter.RepRapGCode
+  gcode_instruction:
+    - match: '(^(?=.{0,1})(?:|))'
+      pop: true
+      captures:
+        0: variable.other.RepRapGCode
+    - include: gcode_parameter
+    - include: inline_comment
+    - include: comment
+  gcode_parameter:
+    - match: '\b(?:[A-Z])'
+      captures:
+        0: variable.parameter.RepRapGCode
+    - include: expression_block
+    - include: quoted_string
+    - include: numeric
+    - match: '(\:)'
+      captures:
+        0: punctuation.separator.RepRapGCode
+  inline_comment:
+    - match: '(\()([^\)]*)(\))'
+      captures:
+        1: comment.line.RepRapGCode
+        2: comment.line.RepRapGCode
+        3: comment.line.RepRapGCode
+  mcode:
+    - match: '(M\d{1,4})'
+      captures:
+        0: entity.name.RepRapGCode
+      push:
+        - match: '(^(?=.{0,1})(?:|))'
+          pop: true
+          captures:
+            0: variable.other.RepRapGCode
+        - include: mcode_parameter
+        - include: inline_comment
+        - include: comment
+    - match: '(.)'
+      captures:
+        0: entity.name.RepRapGCode
+  mcode_parameter:
+    - match: '\b(?:[A-Z])'
+      captures:
+        0: entity.name.RepRapGCode
+    - include: expression_block
+    - include: quoted_string
+    - include: numeric
+    - match: '(\:)'
+      captures:
+        0: punctuation.separator.RepRapGCode
+  numeric:
+    - match: '(?:(-)?\d+\.\d+)'
+      captures:
+        0: constant.numeric.float.RepRapGCode
+    - match: '(?:(-)?\d+(?:_\d+)*)'
+      captures:
+        0: constant.numeric.integer.RepRapGCode
+  quoted_string:
+    - match: '(")([^\x{0022}]*)(")'
+      captures:
+        1: string.quoted.double.RepRapGCode
+        2: string.quoted.double.RepRapGCode
+        3: string.quoted.double.RepRapGCode
+  script:
+    - match: '(?:if|elif|else|while|break|continue|var|set|abort|echo)'
+      captures:
+        0: keyword.RepRapGCode
+      push:
+        - match: '(^(?=.{0,1})(?:|))'
+          pop: true
+          captures:
+            0: variable.other.RepRapGCode
+        - include: expression
+        - include: comment
+  tcode:
+    - match: '\b(T)'
+      captures:
+        0: storage.type.function.RepRapGCode
+      push:
+        - match: '(^(?=.{0,1})(?:|))'
+          pop: true
+          captures:
+            0: variable.other.RepRapGCode
+        - include: expression_block
+        - match: '(?:(-)?\d+(?:_\d+)*)'
+          captures:
+            0: storage.type.function.RepRapGCode
+        - include: tcode_parameter
+        - include: inline_comment
+        - include: comment
+    - match: '(.)'
+      captures:
+        0: storage.type.function.RepRapGCode
+  tcode_parameter:
+    - match: '\b(?:[A-Z])'
+      captures:
+        0: storage.type.function.RepRapGCode
+    - include: expression_block
+    - include: quoted_string
+    - include: numeric
+    - match: '(\:)'
+      captures:
+        0: punctuation.separator.RepRapGCode
